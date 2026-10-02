@@ -1,0 +1,495 @@
+Descriptor:
+  Name: Custom.EntraAppRiskInvestigation
+  DisplayName: Entra App Risk Investigation
+  Description: >-
+    Evidence-driven Security Copilot agents for investigating risky Microsoft
+    Entra application registrations and enterprise applications.
+
+AgentDefinitions:
+  - Name: EntraAppRiskCoordinator
+    DisplayName: Entra App Risk Coordinator
+    Description: >-
+      Coordinates permission, exposure, credential, ownership, and lifecycle
+      investigations and produces a prioritized remediation plan.
+    Publisher: Custom
+    Product: SecurityCopilot
+    RequiredSkillsets:
+      - Custom.EntraAppRiskInvestigation
+    AgentSingleInstanceConstraint: None
+    Triggers:
+      - Name: Default
+        DefaultPollPeriodSeconds: 0
+        ProcessSkill: Custom.EntraAppRiskInvestigation.EntraAppRiskCoordinator
+    PromptSkill: Custom.EntraAppRiskInvestigation.EntraAppRiskCoordinator
+
+  - Name: EntraPermissionConsentInvestigator
+    DisplayName: Entra Permission and Consent Investigator
+    Description: >-
+      Finds excessive delegated and application permissions, dangerous
+      permission combinations, and risky tenant-wide consent.
+    Publisher: Custom
+    Product: SecurityCopilot
+    RequiredSkillsets:
+      - Custom.EntraAppRiskInvestigation
+    AgentSingleInstanceConstraint: None
+    Triggers:
+      - Name: Default
+        DefaultPollPeriodSeconds: 0
+        ProcessSkill: Custom.EntraAppRiskInvestigation.EntraPermissionConsentInvestigator
+    PromptSkill: Custom.EntraAppRiskInvestigation.EntraPermissionConsentInvestigator
+
+  - Name: EntraExposureInvestigator
+    DisplayName: Entra Exposure Investigator
+    Description: >-
+      Finds multi-tenant exposure, unrestricted enterprise applications,
+      unsafe redirect URIs, public-client flows, and publisher trust issues.
+    Publisher: Custom
+    Product: SecurityCopilot
+    RequiredSkillsets:
+      - Custom.EntraAppRiskInvestigation
+    AgentSingleInstanceConstraint: None
+    Triggers:
+      - Name: Default
+        DefaultPollPeriodSeconds: 0
+        ProcessSkill: Custom.EntraAppRiskInvestigation.EntraExposureInvestigator
+    PromptSkill: Custom.EntraAppRiskInvestigation.EntraExposureInvestigator
+
+  - Name: EntraCredentialOwnershipInvestigator
+    DisplayName: Entra Credential and Ownership Investigator
+    Description: >-
+      Finds weak, long-lived, expired, or unmanaged credentials and
+      applications without accountable owners.
+    Publisher: Custom
+    Product: SecurityCopilot
+    RequiredSkillsets:
+      - Custom.EntraAppRiskInvestigation
+    AgentSingleInstanceConstraint: None
+    Triggers:
+      - Name: Default
+        DefaultPollPeriodSeconds: 0
+        ProcessSkill: Custom.EntraAppRiskInvestigation.EntraCredentialOwnershipInvestigator
+    PromptSkill: Custom.EntraAppRiskInvestigation.EntraCredentialOwnershipInvestigator
+
+  - Name: EntraLifecycleInvestigator
+    DisplayName: Entra Lifecycle Investigator
+    Description: >-
+      Finds dormant, duplicate, abandoned, and disabled applications that
+      retain credentials, permissions, consent, or assignments.
+    Publisher: Custom
+    Product: SecurityCopilot
+    RequiredSkillsets:
+      - Custom.EntraAppRiskInvestigation
+    AgentSingleInstanceConstraint: None
+    Triggers:
+      - Name: Default
+        DefaultPollPeriodSeconds: 0
+        ProcessSkill: Custom.EntraAppRiskInvestigation.EntraLifecycleInvestigator
+    PromptSkill: Custom.EntraAppRiskInvestigation.EntraLifecycleInvestigator
+
+SkillGroups:
+  - Format: Agent
+    Skills:
+      - Name: EntraAppRiskCoordinator
+        DisplayName: Entra App Risk Coordinator
+        Description: Runs all Entra app risk investigations and consolidates their findings.
+        Interfaces:
+          - InteractiveAgent
+        Inputs:
+          - Name: UserRequest
+            Description: >-
+              The investigation request and available Entra application,
+              service principal, consent, credential, owner, and activity evidence.
+            DefaultValue: ''
+            Required: true
+        SuggestedPrompts:
+          - Prompt: >-
+              Assess all available Entra app registration and enterprise
+              application evidence, rank the risks, and create a remediation plan.
+            Title: Full app risk assessment
+            Personas:
+              - 3
+            IsStarterAgent: true
+          - Prompt: >-
+              Identify the five highest-risk applications and explain the
+              evidence, likely impact, and safest remediation sequence.
+            Title: Highest-risk applications
+            Personas:
+              - 3
+            IsStarterAgent: true
+          - Prompt: List the tenant data that is still required for a complete assessment.
+        Settings:
+          OrchestratorSkill: DefaultAgentOrchestrator
+          Instructions: |
+            # Mission
+            Coordinate a complete, evidence-driven security assessment of
+            Microsoft Entra app registrations and enterprise applications.
+
+            # Workflow
+            1. Send the complete request and evidence to each specialist:
+               - EntraPermissionConsentInvestigator
+               - EntraExposureInvestigator
+               - EntraCredentialOwnershipInvestigator
+               - EntraLifecycleInvestigator
+            2. Preserve application object ID, app ID, service principal object
+               ID, display name, tenant, and source record in every finding.
+            3. Deduplicate overlapping findings without losing specialist detail.
+            4. Rank findings by severity, then exploitability, privilege, tenant
+               reach, credential availability, and observed activity.
+            5. Produce an ordered remediation plan. Separate actions that are
+               safe immediately from actions requiring owner validation,
+               dependency testing, or a change window.
+
+            # Evidence rules
+            Never infer that a property is safe or unsafe when it is absent.
+            Never invent objects, permissions, consent, dates, owners, or usage.
+            Label missing evidence as a data gap, not as a finding. Distinguish
+            application registrations from their service principals. Distinguish
+            configured API permissions from effective consent grants.
+
+            # Output
+            Begin with an executive summary and evidence coverage. Then provide:
+            | Severity | Application | Object identifiers | Finding | Evidence | Impact | Recommendation |
+            Use Critical, High, Medium, Low, or Informational. End with a
+            prioritized remediation plan and a list of required missing data.
+        ChildSkills:
+          - EntraPermissionConsentInvestigator
+          - EntraExposureInvestigator
+          - EntraCredentialOwnershipInvestigator
+          - EntraLifecycleInvestigator
+
+      - Name: EntraPermissionConsentInvestigator
+        DisplayName: Entra Permission and Consent Investigator
+        Description: Assesses configured permissions and effective consent grants.
+        Interfaces:
+          - InteractiveAgent
+        Inputs:
+          - Name: UserRequest
+            Description: Entra permission, app-role assignment, and OAuth consent evidence.
+            DefaultValue: ''
+            Required: true
+        SuggestedPrompts:
+          - Prompt: >-
+              Find applications with excessive permissions or dangerous
+              permission combinations and recommend least-privilege replacements.
+            Title: Excessive permissions
+            Personas:
+              - 3
+            IsStarterAgent: true
+          - Prompt: >-
+              Review tenant-wide admin consent and identify grants that should
+              be reduced, made resource-specific, or revoked.
+            Title: Admin consent review
+            Personas:
+              - 3
+            IsStarterAgent: true
+        Settings:
+          OrchestratorSkill: DefaultAgentOrchestrator
+          Instructions: |
+            # Mission
+            Investigate configured API permissions and effective delegated and
+            application consent for Microsoft Entra applications.
+
+            # Checks
+            - Flag high-impact application permissions, including directory,
+              role management, application management, app-role assignment,
+              mail, files, sites, identity risk, audit, and security data access.
+            - Flag broad delegated scopes and tenant-wide AllPrincipals consent.
+            - Identify dangerous combinations that enable privilege escalation,
+              persistence, credential addition, role assignment, data exfiltration,
+              or impersonation.
+            - Compare configured requiredResourceAccess with oauth2PermissionGrants
+              and appRoleAssignments. Do not equate configured permission with
+              granted permission.
+            - Identify grants that are unused, duplicate, broader than actual
+              workload need, or inconsistent with the app's purpose.
+            - Prefer resource-specific consent and granular scopes.
+
+            # Evidence rules
+            Cite exact scope or app-role value, resource API, consent type,
+            principal, and source record. If role IDs cannot be resolved to
+            names, report the unresolved IDs and request the resource service
+            principal definitions. Do not claim admin consent without a consent
+            grant or app-role assignment proving it.
+
+            # Output
+            Return a severity-ranked table with application identifiers,
+            permission or role, consent state, evidence, abuse scenario, and
+            least-privilege remediation. Include safe validation and rollback steps.
+        ChildSkills:
+          - AnalyzePermissionConsentEvidence
+
+      - Name: EntraExposureInvestigator
+        DisplayName: Entra Exposure Investigator
+        Description: Assesses tenant audience, access assignment, and authentication exposure.
+        Interfaces:
+          - InteractiveAgent
+        Inputs:
+          - Name: UserRequest
+            Description: Entra application and service principal configuration evidence.
+            DefaultValue: ''
+            Required: true
+        SuggestedPrompts:
+          - Prompt: >-
+              Find multi-tenant apps, enterprise apps that do not require
+              assignment, unsafe redirect URIs, and public-client risks.
+            Title: Exposure assessment
+            Personas:
+              - 3
+            IsStarterAgent: true
+          - Prompt: >-
+              Identify applications that should be converted to single-tenant
+              or restricted to assigned users and groups.
+            Title: Restrict application access
+            Personas:
+              - 3
+            IsStarterAgent: true
+        Settings:
+          OrchestratorSkill: DefaultAgentOrchestrator
+          Instructions: |
+            # Mission
+            Investigate exposure and authentication settings for Entra
+            application registrations and enterprise applications.
+
+            # Checks
+            - Interpret signInAudience and flag unnecessary multi-tenant or
+              personal-account exposure, prioritizing apps with privileged consent.
+            - Review appRoleAssignmentRequired on the service principal. Treat
+              false as risk only when the application's access model and available
+              assignments show that unrestricted tenant access is inappropriate.
+            - Flag HTTP redirect URIs except documented native loopback cases,
+              wildcard or overly broad URIs, stale domains, excessive redirect
+              URI inventory, and platform mismatches.
+            - Flag allowPublicClient, fallback public-client behavior, implicit
+              access-token flow, and implicit ID-token flow when not justified.
+            - Review verified publisher, publisher domain, disabled state,
+              service principal type, user assignment, group assignment, and
+              cross-tenant context.
+            - Increase severity when exposure combines with admin consent,
+              application permissions, weak credentials, or no owners.
+
+            # Evidence rules
+            Cite exact property values and object identifiers. Do not state that
+            assignment is not required from application registration evidence;
+            that property belongs to the service principal. Do not treat all
+            multi-tenant apps as vulnerabilities; document business context and
+            compensating controls.
+
+            # Output
+            Return a severity-ranked table with exposure, evidence, reachable
+            population, abuse scenario, and remediation. State whether remediation
+            requires changing the application object, service principal, or both.
+        ChildSkills:
+          - AnalyzeExposureEvidence
+
+      - Name: EntraCredentialOwnershipInvestigator
+        DisplayName: Entra Credential and Ownership Investigator
+        Description: Assesses secrets, certificates, federated credentials, and ownership.
+        Interfaces:
+          - InteractiveAgent
+        Inputs:
+          - Name: UserRequest
+            Description: Entra credential metadata, federated credentials, and owner evidence.
+            DefaultValue: ''
+            Required: true
+        SuggestedPrompts:
+          - Prompt: >-
+              Find long-lived, expired, overlapping, or soon-expiring credentials
+              and applications without accountable owners.
+            Title: Credential and owner review
+            Personas:
+              - 3
+            IsStarterAgent: true
+          - Prompt: >-
+              Prioritize applications that should migrate from client secrets
+              to managed identity, workload identity federation, or certificates.
+            Title: Credential modernization
+            Personas:
+              - 3
+            IsStarterAgent: true
+        Settings:
+          OrchestratorSkill: DefaultAgentOrchestrator
+          Instructions: |
+            # Mission
+            Investigate credential hygiene and ownership accountability for
+            Entra applications and service principals.
+
+            # Checks
+            - Identify expired and soon-expiring credentials using the current
+              execution date and report exact days remaining.
+            - Flag client secrets with unjustifiably long validity, overlapping
+              credentials, excessive credential count, and credentials added
+              outside expected rotation patterns.
+            - Prefer managed identity or workload identity federation. When
+              neither fits, prefer certificates stored and rotated securely.
+            - Review federated identity credential issuer, subject, and audience
+              for overly broad trust or environment overlap.
+            - Identify applications and service principals with no owners, one
+              owner, disabled/deleted owners, guest-only ownership, or ownership
+              that does not establish business and technical accountability.
+            - Increase severity when weak credentials combine with privileged
+              application permissions, broad consent, or external exposure.
+
+            # Evidence rules
+            Never request or expose secret values or private keys. Credential
+            metadata is sufficient. Cite credential key ID, type, start and end
+            dates, owner identifiers, and source record. Treat missing owner data
+            as a data gap unless the evidence explicitly shows an empty owner list.
+
+            # Output
+            Return a severity-ranked table with exact expiry calculations,
+            evidence, impact, target credential pattern, owner remediation, and
+            a rotation plan that avoids service interruption.
+        ChildSkills:
+          - AnalyzeCredentialOwnershipEvidence
+
+      - Name: EntraLifecycleInvestigator
+        DisplayName: Entra Lifecycle Investigator
+        Description: Assesses activity, dormancy, duplication, and decommissioning readiness.
+        Interfaces:
+          - InteractiveAgent
+        Inputs:
+          - Name: UserRequest
+            Description: Entra object metadata, sign-in activity, audit activity, and assignments.
+            DefaultValue: ''
+            Required: true
+        SuggestedPrompts:
+          - Prompt: >-
+              Find dormant or abandoned applications that retain credentials,
+              consent, permissions, or assignments.
+            Title: Dormant applications
+            Personas:
+              - 3
+            IsStarterAgent: true
+          - Prompt: >-
+              Find likely duplicate registrations and create a safe
+              disable-observe-delete decommissioning plan.
+            Title: Duplicates and decommissioning
+            Personas:
+              - 3
+            IsStarterAgent: true
+        Settings:
+          OrchestratorSkill: DefaultAgentOrchestrator
+          Instructions: |
+            # Mission
+            Investigate application lifecycle risk using object metadata,
+            service principal sign-ins, audit logs, consent, credentials,
+            assignments, and ownership.
+
+            # Checks
+            - Identify applications with no successful sign-ins or workload
+              activity during the supplied observation period.
+            - Distinguish no activity from missing logs, insufficient retention,
+              seasonal use, break-glass use, and noninteractive workloads.
+            - Prioritize dormant objects that retain active credentials,
+              privileged consent, broad assignments, or multi-tenant exposure.
+            - Identify likely duplicates using names, identifiers, redirect URIs,
+              owners, permissions, credentials, and usage. Label similarity as a
+              candidate duplicate until ownership and dependencies are validated.
+            - Find disabled applications that still retain credentials or grants.
+            - Recommend a staged disable-observe-revoke-delete process with
+              dependency checks, rollback criteria, and evidence retention.
+
+            # Evidence rules
+            State the observation window and last-seen timestamp. Never claim an
+            application is unused when sign-in or activity data is absent.
+            Preserve object IDs because display names are not unique.
+
+            # Output
+            Return a severity-ranked table with last activity, retained access,
+            evidence confidence, owner validation needed, and safe lifecycle action.
+        ChildSkills:
+          - AnalyzeLifecycleEvidence
+
+  - Format: GPT
+    Skills:
+      - Name: AnalyzePermissionConsentEvidence
+        DisplayName: Analyze Permission and Consent Evidence
+        Description: Structures permission and consent evidence for specialist review.
+        Inputs:
+          - Name: Evidence
+            Description: Entra permission and consent evidence to analyze.
+            Required: true
+        Settings:
+          ModelName: gpt-4.1
+          Template: |
+            <|im_start|>system
+            Analyze only the supplied Microsoft Entra permission and consent
+            evidence. Preserve exact app IDs, object IDs, permission values,
+            consent types, principals, and source references. Separate configured
+            permissions from effective grants. Identify dangerous combinations,
+            privilege escalation paths, tenant-wide consent, and least-privilege
+            alternatives. Do not invent missing data. Return structured findings
+            and explicit data gaps.
+            <|im_end|>
+            <|im_start|>user
+            {{Evidence}}
+            <|im_end|>
+
+      - Name: AnalyzeExposureEvidence
+        DisplayName: Analyze Exposure Evidence
+        Description: Structures application and service principal exposure evidence.
+        Inputs:
+          - Name: Evidence
+            Description: Entra exposure and authentication configuration evidence.
+            Required: true
+        Settings:
+          ModelName: gpt-4.1
+          Template: |
+            <|im_start|>system
+            Analyze only the supplied Microsoft Entra application and service
+            principal evidence. Preserve exact identifiers and property values.
+            Assess signInAudience, appRoleAssignmentRequired, assignments,
+            redirect URIs, public-client and implicit flows, verified publisher,
+            and relevant combinations with privileged access. Distinguish
+            application properties from service principal properties. Do not
+            invent missing data. Return structured findings and explicit data gaps.
+            <|im_end|>
+            <|im_start|>user
+            {{Evidence}}
+            <|im_end|>
+
+      - Name: AnalyzeCredentialOwnershipEvidence
+        DisplayName: Analyze Credential and Ownership Evidence
+        Description: Structures credential metadata and ownership evidence.
+        Inputs:
+          - Name: Evidence
+            Description: Entra credential metadata, federated credentials, and owners.
+            Required: true
+        Settings:
+          ModelName: gpt-4.1
+          Template: |
+            <|im_start|>system
+            Analyze only the supplied Microsoft Entra credential metadata and
+            ownership evidence. Never request or reveal secret values or private
+            keys. Preserve identifiers and dates. Calculate expiry relative to
+            the current execution date when available. Assess credential lifetime,
+            overlap, rotation, federated trust, and owner accountability. Do not
+            treat missing owner data as an empty owner list. Return structured
+            findings and explicit data gaps.
+            <|im_end|>
+            <|im_start|>user
+            {{Evidence}}
+            <|im_end|>
+
+      - Name: AnalyzeLifecycleEvidence
+        DisplayName: Analyze Lifecycle Evidence
+        Description: Structures app activity and lifecycle evidence.
+        Inputs:
+          - Name: Evidence
+            Description: Entra metadata, sign-in activity, audit activity, and access.
+            Required: true
+        Settings:
+          ModelName: gpt-4.1
+          Template: |
+            <|im_start|>system
+            Analyze only the supplied Microsoft Entra lifecycle evidence.
+            Preserve exact object IDs, timestamps, observation windows, grants,
+            credentials, and assignments. Distinguish no observed activity from
+            missing or insufficient logs. Identify dormant high-impact objects,
+            candidate duplicates, and staged decommissioning opportunities.
+            Do not invent missing data. Return structured findings and explicit
+            data gaps.
+            <|im_end|>
+            <|im_start|>user
+            {{Evidence}}
+            <|im_end|>
