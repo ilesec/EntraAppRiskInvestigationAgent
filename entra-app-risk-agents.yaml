@@ -15,6 +15,7 @@ AgentDefinitions:
     Product: SecurityCopilot
     RequiredSkillsets:
       - Custom.EntraAppRiskInvestigation
+      - Entra
     AgentSingleInstanceConstraint: None
     Triggers:
       - Name: Default
@@ -31,6 +32,7 @@ AgentDefinitions:
     Product: SecurityCopilot
     RequiredSkillsets:
       - Custom.EntraAppRiskInvestigation
+      - Entra
     AgentSingleInstanceConstraint: None
     Triggers:
       - Name: Default
@@ -47,6 +49,7 @@ AgentDefinitions:
     Product: SecurityCopilot
     RequiredSkillsets:
       - Custom.EntraAppRiskInvestigation
+      - Entra
     AgentSingleInstanceConstraint: None
     Triggers:
       - Name: Default
@@ -63,6 +66,7 @@ AgentDefinitions:
     Product: SecurityCopilot
     RequiredSkillsets:
       - Custom.EntraAppRiskInvestigation
+      - Entra
     AgentSingleInstanceConstraint: None
     Triggers:
       - Name: Default
@@ -79,6 +83,7 @@ AgentDefinitions:
     Product: SecurityCopilot
     RequiredSkillsets:
       - Custom.EntraAppRiskInvestigation
+      - Entra
     AgentSingleInstanceConstraint: None
     Triggers:
       - Name: Default
@@ -97,8 +102,9 @@ SkillGroups:
         Inputs:
           - Name: UserRequest
             Description: >-
-              The investigation request and available Entra application,
-              service principal, consent, credential, owner, and activity evidence.
+              The investigation scope or question. The agent retrieves Entra
+              application, service principal, consent, credential, owner, and
+              activity evidence automatically.
             DefaultValue: ''
             Required: true
         SuggestedPrompts:
@@ -125,17 +131,25 @@ SkillGroups:
             Microsoft Entra app registrations and enterprise applications.
 
             # Workflow
-            1. Send the complete request and evidence to each specialist:
+            1. Treat the user request as investigation scope, not as a request
+               for the user to provide tenant data. Immediately run each
+               specialist, which must retrieve its evidence with the Entra
+               plugin:
                - EntraPermissionConsentInvestigator
                - EntraExposureInvestigator
                - EntraCredentialOwnershipInvestigator
                - EntraLifecycleInvestigator
-            2. Preserve application object ID, app ID, service principal object
+            2. Unless the user explicitly supplies evidence, do not ask the user
+               for exports, object lists, or tenant data before trying the
+               Entra plugin. If a plugin call fails or access is unavailable,
+               report the exact failed skill or missing permission and continue
+               with data returned by the other skills.
+            3. Preserve application object ID, app ID, service principal object
                ID, display name, tenant, and source record in every finding.
-            3. Deduplicate overlapping findings without losing specialist detail.
-            4. Rank findings by severity, then exploitability, privilege, tenant
+            4. Deduplicate overlapping findings without losing specialist detail.
+            5. Rank findings by severity, then exploitability, privilege, tenant
                reach, credential availability, and observed activity.
-            5. Produce an ordered remediation plan. Separate actions that are
+            6. Produce an ordered remediation plan. Separate actions that are
                safe immediately from actions requiring owner validation,
                dependency testing, or a change window.
 
@@ -164,7 +178,7 @@ SkillGroups:
           - InteractiveAgent
         Inputs:
           - Name: UserRequest
-            Description: Entra permission, app-role assignment, and OAuth consent evidence.
+            Description: Investigation scope for Entra permissions and consent.
             DefaultValue: ''
             Required: true
         SuggestedPrompts:
@@ -188,6 +202,13 @@ SkillGroups:
             # Mission
             Investigate configured API permissions and effective delegated and
             application consent for Microsoft Entra applications.
+
+            # Data retrieval
+            Immediately use the Entra plugin to retrieve applications, service
+            principals, and granted permissions. Use GetEntraData for additional
+            Entra records needed to resolve permission names or consent context.
+            Do not ask the user to supply tenant data unless these plugin calls
+            fail. Report the failed skill and continue with available results.
 
             # Checks
             - Flag high-impact application permissions, including directory,
@@ -217,6 +238,10 @@ SkillGroups:
             least-privilege remediation. Include safe validation and rollback steps.
         ChildSkills:
           - AnalyzePermissionConsentEvidence
+          - GetEntraApplication
+          - GetEntraServicePrincipalDetails
+          - GetEntraServicePrincipalPermissionsGranted
+          - GetEntraData
 
       - Name: EntraExposureInvestigator
         DisplayName: Entra Exposure Investigator
@@ -225,7 +250,7 @@ SkillGroups:
           - InteractiveAgent
         Inputs:
           - Name: UserRequest
-            Description: Entra application and service principal configuration evidence.
+            Description: Investigation scope for Entra application exposure.
             DefaultValue: ''
             Required: true
         SuggestedPrompts:
@@ -249,6 +274,13 @@ SkillGroups:
             # Mission
             Investigate exposure and authentication settings for Entra
             application registrations and enterprise applications.
+
+            # Data retrieval
+            Immediately use the Entra plugin to retrieve application and service
+            principal details. Use GetEntraData for assignments and configuration
+            not returned by the detail skills. Do not ask the user to supply
+            tenant data unless these plugin calls fail. Report the failed skill
+            and continue with available results.
 
             # Checks
             - Interpret signInAudience and flag unnecessary multi-tenant or
@@ -280,6 +312,9 @@ SkillGroups:
             requires changing the application object, service principal, or both.
         ChildSkills:
           - AnalyzeExposureEvidence
+          - GetEntraApplication
+          - GetEntraServicePrincipalDetails
+          - GetEntraData
 
       - Name: EntraCredentialOwnershipInvestigator
         DisplayName: Entra Credential and Ownership Investigator
@@ -288,7 +323,7 @@ SkillGroups:
           - InteractiveAgent
         Inputs:
           - Name: UserRequest
-            Description: Entra credential metadata, federated credentials, and owner evidence.
+            Description: Investigation scope for Entra credentials and ownership.
             DefaultValue: ''
             Required: true
         SuggestedPrompts:
@@ -312,6 +347,14 @@ SkillGroups:
             # Mission
             Investigate credential hygiene and ownership accountability for
             Entra applications and service principals.
+
+            # Data retrieval
+            Immediately use the Entra plugin to retrieve application and service
+            principal details, including available credential and owner metadata.
+            Use GetEntraData and GetEntraAuditLogs to fill supported ownership,
+            federated identity, and credential-change context. Do not ask the
+            user to supply tenant data unless these plugin calls fail. Report
+            the failed skill and continue with available results.
 
             # Checks
             - Identify expired and soon-expiring credentials using the current
@@ -341,6 +384,10 @@ SkillGroups:
             a rotation plan that avoids service interruption.
         ChildSkills:
           - AnalyzeCredentialOwnershipEvidence
+          - GetEntraApplication
+          - GetEntraServicePrincipalDetails
+          - GetEntraData
+          - GetEntraAuditLogs
 
       - Name: EntraLifecycleInvestigator
         DisplayName: Entra Lifecycle Investigator
@@ -349,7 +396,7 @@ SkillGroups:
           - InteractiveAgent
         Inputs:
           - Name: UserRequest
-            Description: Entra object metadata, sign-in activity, audit activity, and assignments.
+            Description: Investigation scope for Entra application lifecycle risk.
             DefaultValue: ''
             Required: true
         SuggestedPrompts:
@@ -375,6 +422,13 @@ SkillGroups:
             service principal sign-ins, audit logs, consent, credentials,
             assignments, and ownership.
 
+            # Data retrieval
+            Immediately use the Entra plugin to retrieve application and service
+            principal details, unused applications, risky service principals,
+            audit logs, and other required Entra records. Do not ask the user to
+            supply tenant data unless these plugin calls fail. Report the failed
+            skill and continue with available results.
+
             # Checks
             - Identify applications with no successful sign-ins or workload
               activity during the supplied observation period.
@@ -399,6 +453,12 @@ SkillGroups:
             evidence confidence, owner validation needed, and safe lifecycle action.
         ChildSkills:
           - AnalyzeLifecycleEvidence
+          - GetEntraApplication
+          - GetEntraServicePrincipalDetails
+          - GetEntraUnusedApplication
+          - GetEntraRiskyServicePrincipals
+          - GetEntraAuditLogs
+          - GetEntraData
 
   - Format: GPT
     Skills:

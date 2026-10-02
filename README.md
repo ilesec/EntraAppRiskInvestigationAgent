@@ -23,29 +23,26 @@ Microsoft Entra application registrations and enterprise applications.
 1. Open Microsoft Security Copilot and go to **Agents**.
 2. Select **Create agent** and then **Upload a YAML manifest**.
 3. Upload `entra-app-risk-agents.yaml`.
-4. Review the generated agent definitions and tools.
-5. Test each specialist agent before publishing the coordinator.
+4. Confirm that the built-in **Microsoft Entra** plugin is enabled and
+   authorized for the tenant. The manifest declares the `Entra` skillset and
+   the agents query it automatically.
+5. Review the generated agent definitions and tools.
+6. Test each specialist agent before publishing the coordinator.
 
 The manifest intentionally disables scheduled execution by setting
 `DefaultPollPeriodSeconds` to `0`. This avoids autonomous changes or recurring
 capacity use until the investigation and data-access design has been validated.
 
-## Evidence to provide
+## Automatic Entra evidence collection
 
-The agents are evidence-driven. Supply authenticated tool output or exports with:
+The agents use the built-in Entra plugin to retrieve application, service
+principal, permission, consent, credential, owner, audit, risk, and activity
+data. Start an investigation by describing its scope; do not paste tenant
+exports into the prompt.
 
-- Applications: object ID, app ID, display name, creation date,
-  `signInAudience`, `requiredResourceAccess`, redirect URIs, public-client and
-  implicit-flow settings, verified publisher, credentials, federated identity
-  credentials, and owners.
-- Service principals: object ID, app ID, enabled state,
-  `appRoleAssignmentRequired`, service principal type, owners, assigned users
-  and groups, and app-role assignments.
-- Consent: OAuth permission grants and application-role assignments, including
-  resource, client, principal, consent type, scopes or roles, and timestamps
-  where available.
-- Activity: service principal and application sign-ins plus relevant audit
-  events. Include the observation period and log-retention boundary.
+If a required plugin skill or permission is unavailable, the agent reports the
+specific failed skill as a data gap and continues with the data it can retrieve.
+Optional evidence supplied by the user can still supplement plugin results.
 
 Do not supply client-secret values, certificate private keys, access tokens, or
 other credentials. Credential metadata is sufficient.
