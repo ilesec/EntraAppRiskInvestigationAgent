@@ -36,7 +36,12 @@ SkillGroups:
             Description: >-
               Investigation scope or question. The agent retrieves Entra
               application and service principal evidence automatically.
-            DefaultValue: ''
+            DefaultValue: >-
+              Assess all Entra application registrations and enterprise
+              applications in the tenant. Retrieve the required data using the
+              Entra plugin, identify the highest-risk applications, and produce
+              a prioritized remediation plan. Do not request manual data unless
+              an Entra plugin skill fails.
             Required: true
         SuggestedPrompts:
           - Prompt: >-
